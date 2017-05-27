@@ -5,7 +5,6 @@
 """
 
 from curio import socket, run, spawn
-from curionet import util
 
 class NetworkHandlerError(RuntimeError):
     """
@@ -82,7 +81,7 @@ class NetworkFactory(object):
     """
 
     REUSE_ADDRESS = True
-    ADDRESS = util.NET_DEFAULT_ADDRESS
+    ADDRESS = '0.0.0.0'
     BACKLOG = 10000
     TIMEOUT = 0
 
@@ -158,5 +157,5 @@ class NetworkFactory(object):
         finally:
             self.socket.listen(self.BACKLOG)
 
-        # run the main loop on a the curio task manager
+        # run the main loop, on the curio task manager
         run(self.execute)
