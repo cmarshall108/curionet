@@ -44,6 +44,14 @@ t1 = task_manager.add(task_func_1)
 t2 = task_func_2()
 t3 = task_manager.add(task_func_3)
 
+def task_func_4_delayed(task):
+    print ("Ran task_func_4_delayed with delayed")
+    print ("Duration since last execution: %d" % task.duration)
+
+    return task.again
+
+task_manager.do_method_later(5.0, task_func_4_delayed)
+
 @task_manager.add_deferred
 def r(task):
 
