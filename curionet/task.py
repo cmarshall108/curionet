@@ -32,6 +32,7 @@ class Task(object):
         self.function = None
         self.timestamp = time.time()
         self.delay = 0.0
+        self.can_delay = True
         self.args = []
         self.kwargs = {}
         self.active = False
@@ -64,10 +65,11 @@ class Task(object):
         if not callable(self.function):
             raise TaskError('Failed to execute task %s, function not callable!' % self.name)
 
-        if self.duration < self.delay:
-            return self.cont
-        else:
-            self.timestamp = time.time()
+        if self.can_delay:
+            if self.duration < self.delay:
+                return self.again
+            else:
+                self.timestamp = time.time()
 
         return self.function(self, *self.args, **self.kwargs)
 
@@ -231,12 +233,16 @@ class TaskManager(object):
             for task in list(self.running.values()):
                 result = task.run()
 
+                # only the task can say it should be delayed again...
+                if task.can_delay:
+                    task.can_delay = False
+
                 if result == TaskResult.DONE:
                     self.remove(task)
                 elif result == TaskResult.CONT:
                     self.cycle(task)
                 elif result == TaskResult.AGAIN:
-                    pass
+                    task.can_delay = True
                 else:
                     self.remove(task)
 
