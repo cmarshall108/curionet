@@ -16,7 +16,7 @@ class NetworkHandler(object):
     A handler instance which streams connection-orientated protocols
     """
 
-    BUFFER_SIZE = 1024
+    INCOMING_BUFFER_SIZE = 1024
 
     def __init__(self, factory, connection, address):
         self.factory = factory
@@ -24,16 +24,14 @@ class NetworkHandler(object):
         self.address = address
         self.task = None
 
-    async def handle_connected(self):
+    async def handle_connect(self):
         self.factory.add_handler(self)
-
-    async def execute(self):
         await self.handle_connected()
 
         async with self.connection:
             while True:
                 try:
-                    data = await self.connection.recv(self.BUFFER_SIZE)
+                    data = await self.connection.recv(self.INCOMING_BUFFER_SIZE)
                 except socket.error:
                     break
 
@@ -42,9 +40,12 @@ class NetworkHandler(object):
 
                 await self.handle_received(data)
 
-            await self.handle_close()
+            await self.handle_disconnect()
 
         await self.handle_join()
+
+    async def handle_connected(self):
+        pass
 
     async def handle_received(self, data):
         pass
@@ -53,16 +54,18 @@ class NetworkHandler(object):
         try:
             await self.connection.sendall(data)
         except socket.error:
-            await self.handle_close()
+            await self.handle_disconnect()
 
-    async def handle_close(self):
+    async def handle_disconnect(self):
+        self.factory.remove_handler(self)
+
         try:
             await self.connection.close()
         finally:
-            await self.handle_closed()
+            await self.handle_disconnected()
 
-    async def handle_closed(self):
-        self.factory.remove_handler(self)
+    async def handle_disconnected(self):
+        pass
 
     async def handle_join(self):
         if not self.task:
@@ -80,23 +83,13 @@ class NetworkFactory(object):
     A factory instance which manages connection handlers
     """
 
-    REUSE_ADDRESS = True
-    ADDRESS = '0.0.0.0'
-    BACKLOG = 10000
-    TIMEOUT = 0
-
-    def __init__(self, port, handler):
-        self.address = self.ADDRESS
+    def __init__(self, address, port, handler):
+        self.address = address
         self.port = port
         self.handler = handler
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        if self.REUSE_ADDRESS:
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
-
-        if self.TIMEOUT:
-            self.socket.settimeout(self.TIMEOUT)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
 
         self.handlers = []
 
@@ -120,16 +113,10 @@ class NetworkFactory(object):
             while True:
                 (connection, address) = await self.socket.accept()
 
-                if self.TIMEOUT:
-                    connection.settimeout(self.TIMEOUT)
-
-                # create a new instance of the protocol handler
                 handler = self.handler(self, connection, address)
+                handler.task = await spawn(handler.handle_connect)
 
-                # spawn the instance main loop on the curio task manager
-                handler.task = await spawn(handler.execute)
-
-            await self.handle_close()
+            await self.handle_disconnect()
 
     async def handle_send(self, data, exceptions=[]):
         for handler in self.handlers:
@@ -139,23 +126,22 @@ class NetworkFactory(object):
 
             await handler.handle_send(data)
 
-    async def handle_close(self):
+    async def handle_disconnect(self):
         try:
             await self.socket.close()
         finally:
-            await self.handle_closed()
+            await self.handle_disconnected()
 
-    async def handle_closed(self):
+    async def handle_disconnected(self):
         pass
 
-    def run(self):
+    def run(self, backlog=10000):
         try:
             self.socket.bind((self.address, self.port))
         except socket.error:
             raise NetworkFactoryError('Failed to bind socket on address %s:%d!' % (self.address,
                 self.port))
         finally:
-            self.socket.listen(self.BACKLOG)
+            self.socket.listen(backlog)
 
-        # run the main loop, on the curio task manager
-        run(self.execute)
+        return run(self.execute)
