@@ -81,13 +81,13 @@ class DataBufferIO(object):
     def write_bool(self, value):
         self.write_to('?', value)
 
-    def read_short(self, value):
+    def read_short(self):
         return self.read_from('h')[0]
 
     def write_short(self, value):
         self.write_to('h', value)
 
-    def read_ushort(self, value):
+    def read_ushort(self):
         return self.read_from('H')[0]
 
     def write_ushort(self, value):
