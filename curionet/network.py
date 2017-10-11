@@ -16,7 +16,7 @@ class NetworkHandler(object):
     A handler instance which streams connection-orientated protocols
     """
 
-    INCOMING_BUFFER_SIZE = 1024
+    BUFFER_SIZE = 1024
 
     def __init__(self, factory, connection, address):
         self.factory = factory
@@ -24,25 +24,23 @@ class NetworkHandler(object):
         self.address = address
         self.task = None
 
+    async def __update(self):
+        try:
+            data = await self.connection.recv(self.BUFFER_SIZE)
+        except socket.error:
+            return await self.handle_disconnect()
+
+        if not data:
+            return await self.handle_disconnect()
+
+        await self.handle_received(data)
+
     async def handle_connect(self):
-        self.factory.add_handler(self)
-        await self.handle_connected()
+        await self.factory.add_handler(self)
 
         async with self.connection:
             while True:
-                try:
-                    data = await self.connection.recv(self.INCOMING_BUFFER_SIZE)
-                except socket.error:
-                    break
-
-                if not data:
-                    break
-
-                await self.handle_received(data)
-
-            await self.handle_disconnect()
-
-        await self.handle_join()
+                await self.__update()
 
     async def handle_connected(self):
         pass
@@ -54,15 +52,12 @@ class NetworkHandler(object):
         try:
             await self.connection.sendall(data)
         except socket.error:
-            await self.handle_disconnect()
+            return await self.handle_disconnect()
 
     async def handle_disconnect(self):
-        self.factory.remove_handler(self)
-
-        try:
-            await self.connection.close()
-        finally:
-            await self.handle_disconnected()
+        await self.connection.close()
+        await self.handle_join()
+        await self.factory.remove_handler(self)
 
     async def handle_disconnected(self):
         pass
@@ -83,38 +78,52 @@ class NetworkFactory(object):
     A factory instance which manages connection handlers
     """
 
-    def __init__(self, address, port, handler):
+    def __init__(self, address, port, handler, backlog=100):
         self.address = address
         self.port = port
         self.handler = handler
+        self.backlog = backlog
 
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
+        self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.__socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
 
         self.handlers = []
 
     def has_handler(self, handler):
         return handler in self.handlers
 
-    def add_handler(self, handler):
+    async def add_handler(self, handler):
         if self.has_handler(handler):
             return
 
         self.handlers.append(handler)
+        await handler.handle_connected()
 
-    def remove_handler(self, handler):
+    async def remove_handler(self, handler):
         if not self.has_handler(handler):
             return
 
         self.handlers.remove(handler)
+        await handler.handle_disconnected()
+
+    async def handle_start(self):
+        pass
+
+    async def __update(self):
+        try:
+            (connection, address) = await self.__socket.accept()
+        except socket.error:
+            raise NetworkFactoryError('An error occurred, when trying to accept an incoming connection!')
+
+        handler = self.handler(self, connection, address)
+        handler.task = await spawn(handler.handle_connect)
 
     async def execute(self):
-        async with self.socket:
-            while True:
-                (connection, address) = await self.socket.accept()
+        await self.handle_start()
 
-                handler = self.handler(self, connection, address)
-                handler.task = await spawn(handler.handle_connect)
+        async with self.__socket:
+            while True:
+                await self.__update()
 
             await self.handle_disconnect()
 
@@ -127,21 +136,22 @@ class NetworkFactory(object):
             await handler.handle_send(data)
 
     async def handle_disconnect(self):
-        try:
-            await self.socket.close()
-        finally:
-            await self.handle_disconnected()
+        await self.__socket.close()
+        await self.handle_stop()
 
-    async def handle_disconnected(self):
+    async def handle_stop(self):
         pass
 
-    def run(self, backlog=10000):
+    def run(self):
         try:
-            self.socket.bind((self.address, self.port))
+            self.__socket.bind((self.address, self.port))
         except socket.error:
-            raise NetworkFactoryError('Failed to bind socket on address %s:%d!' % (self.address,
+            raise NetworkFactoryError('Failed to bind socket on address (%s:%d)!' % (self.address,
                 self.port))
-        finally:
-            self.socket.listen(backlog)
+
+        try:
+            self.__socket.listen(self.backlog)
+        except socket.error:
+            raise NetworkFactoryError('Failed to listen on socket!')
 
         return run(self.execute)
