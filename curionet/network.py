@@ -56,8 +56,8 @@ class NetworkHandler(object):
 
     async def handle_disconnect(self):
         await self.connection.close()
-        await self.handle_join()
         await self.factory.remove_handler(self)
+        await self.handle_join()
 
     async def handle_disconnected(self):
         pass
