@@ -10,24 +10,24 @@ A simple tcp server example
 
 .. code:: python
 
-  from curionet.network import NetworkFactory, NetworkHandler
+  from curionet import network
 
-  class ExampleHandler(NetworkHandler):
+  class ExampleHandler(network.NetworkHandler):
       """
       An example connection handler derived from NetworkHandler
       """
 
       async def handle_connected(self):
-          await super().handle_connected()
+          print ('Connected.')
 
       async def handle_received(self, data):
-          print ('Data recieved from %s: %r!' % (self.address, data))
+          print ('Data recieved from (%s: %r)!' % (self.address, data))
 
-      async def handle_closed(self):
-          await super().handle_closed()
+      async def handle_disconnected(self):
+          print ('Disconnected.')
 
   if __name__ == '__main__':
-      factory = NetworkFactory(8080, ExampleHandler)
+      factory = network.NetworkFactory('0.0.0.0', 8080, ExampleHandler)
       factory.run()
 
 Other Resources
