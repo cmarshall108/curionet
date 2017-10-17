@@ -3,7 +3,7 @@ Curionet
 
 An asynchronous high-level networking framework built on top of the Curio library.
 
-Example
+Examples
 -------
 
 A simple tcp server example
@@ -33,6 +33,7 @@ A simple tcp server example
 A simple tcp connection example
 
 .. code:: python
+
     from curionet import network
 
     class ExampleConnector(network.NetworkConnector):
