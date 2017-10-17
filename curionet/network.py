@@ -45,14 +45,14 @@ class NetworkHandler(object):
     async def handle_connected(self):
         pass
 
-    async def handle_received(self, data):
-        pass
-
     async def handle_send(self, data):
         try:
             await self.connection.sendall(data)
         except socket.error:
             return await self.handle_disconnect()
+
+    async def handle_received(self, data):
+        pass
 
     async def handle_disconnect(self):
         await self.connection.close()
@@ -154,4 +154,68 @@ class NetworkFactory(object):
         except socket.error:
             raise NetworkFactoryError('Failed to listen on socket!')
 
+        return run(self.execute)
+
+class NetworkConnectorError(RuntimeError):
+    """
+    A network connector specific runtime error
+    """
+
+class NetworkConnector(object):
+    """
+    A connector instance that manages single a socket connection
+    """
+
+    BUFFER_SIZE = 1024
+
+    def __init__(self, address, port):
+        self.address = address
+        self.port = port
+
+        self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    
+    async def __update(self):
+        try:
+            data = await self.__socket.recv(self.BUFFER_SIZE)
+        except socket.error:
+            return await self.handle_disconnect()
+
+        if not data:
+            return await self.handle_disconnect()
+
+        await self.handle_received(data)
+
+    async def handle_connected(self):
+        pass
+
+    async def handle_send(self, data):
+        try:
+            await self.__socket.sendall(data)
+        except socket.error:
+            return await self.handle_disconnect()
+
+    async def handle_received(self, data):
+        pass
+    
+    async def handle_disconnect(self):
+        await self.__socket.close()
+        await self.handle_disconnected()
+
+    async def handle_disconnected(self):
+        pass
+    
+    async def execute(self):
+        await self.handle_connected()
+
+        async with self.__socket:
+            while True:
+                await self.__update()
+    
+    def run(self):
+        try:
+            self.__socket.connect((self.address, self.port))
+        except socket.error:
+            raise NetworkConnectorError('Failed to connect to server at (%s:%d)!' % (self.address,
+                self.port))
+        
         return run(self.execute)

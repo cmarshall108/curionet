@@ -6,23 +6,23 @@
 
 from curionet import network
 
-class ExampleHandler(network.NetworkHandler):
+class ExampleConnector(network.NetworkConnector):
     """
-    An example connection handler derived from NetworkHandler
+    An example connector derived from NetworkConnector
     """
 
     async def handle_connected(self):
         print ('Connected.')
 
+        # send the server some data...
+        await self.handle_send('Hello World!')
+
     async def handle_received(self, data):
         print ('Data recieved from (%s: %r)!' % (self.address, data))
-
-        # send the data back to the client.
-        await self.handle_send(data)
 
     async def handle_disconnected(self):
         print ('Disconnected.')
 
 if __name__ == '__main__':
-    factory = network.NetworkFactory('0.0.0.0', 8080, ExampleHandler)
-    factory.run()
+    connector = ExampleConnector('127.0.0.1', 8080)
+    connector.run()
