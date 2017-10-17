@@ -30,6 +30,29 @@ A simple tcp server example
       factory = network.NetworkFactory('0.0.0.0', 8080, ExampleHandler)
       factory.run()
 
+A simple tcp connection example
+
+.. code:: python
+    from curionet import network
+
+    class ExampleConnector(network.NetworkConnector):
+        """
+        An example connector derived from NetworkConnector
+        """
+
+        async def handle_connected(self):
+            print ('Connected.')
+
+        async def handle_received(self, data):
+            print ('Data recieved from server (%s: %r)!' % (self.address, data))
+
+        async def handle_disconnected(self):
+            print ('Disconnected.')
+
+    if __name__ == '__main__':
+        connector = ExampleConnector('127.0.0.1', 8080)
+        connector.run()
+
 Other Resources
 ---------------
 

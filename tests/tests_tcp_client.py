@@ -18,7 +18,7 @@ class ExampleConnector(network.NetworkConnector):
         await self.handle_send('Hello World!')
 
     async def handle_received(self, data):
-        print ('Data recieved from (%s: %r)!' % (self.address, data))
+        print ('Data recieved from server (%s: %r)!' % (self.address, data))
 
     async def handle_disconnected(self):
         print ('Disconnected.')
