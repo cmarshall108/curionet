@@ -202,7 +202,7 @@ class NetworkConnector(object):
         await self.handle_disconnected()
 
     async def handle_disconnected(self):
-        pass
+        raise NetworkConnectorError('Connector disconnected from (%s:%d)!' % (self.address, self.port)
     
     async def execute(self):
         try:
