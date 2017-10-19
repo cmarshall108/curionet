@@ -205,6 +205,12 @@ class NetworkConnector(object):
         pass
     
     async def execute(self):
+        try:
+            await self.__socket.connect((self.address, self.port))
+        except socket.error:
+            raise NetworkConnectorError('Failed to connect to server at (%s:%d)!' % (self.address,
+                self.port))
+ 
         await self.handle_connected()
 
         async with self.__socket:
@@ -212,10 +218,4 @@ class NetworkConnector(object):
                 await self.__update()
     
     def run(self):
-        try:
-            self.__socket.connect((self.address, self.port))
-        except socket.error:
-            raise NetworkConnectorError('Failed to connect to server at (%s:%d)!' % (self.address,
-                self.port))
-        
         return run(self.execute)
