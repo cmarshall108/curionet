@@ -6,7 +6,7 @@ An asynchronous high-level networking framework built on top of the Curio librar
 Examples
 -------
 
-A simple tcp server example
+A simple tcp server example:
 
 .. code:: python
 
@@ -30,7 +30,7 @@ A simple tcp server example
       factory = network.NetworkFactory('0.0.0.0', 8080, ExampleHandler)
       factory.run()
 
-A simple tcp connection example
+A simple tcp connection example:
 
 .. code:: python
 
@@ -62,7 +62,7 @@ Other Resources
 Contributors
 ------------
 
-- Caleb Marshall
+- Caleb Marshall (Anythingtechpro)
 
 About
 -----
