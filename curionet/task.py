@@ -186,7 +186,7 @@ class TaskManager(object):
 
         return self.prepend(function, 0, *args, **kwargs)
 
-    def do_method_later(self, delay, function, *args, **kwargs):
+    def add_delayed(self, delay, function, *args, **kwargs):
         """
         Adds a new task to the task manager with a delay
         """
